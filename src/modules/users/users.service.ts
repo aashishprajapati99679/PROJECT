@@ -21,6 +21,7 @@ import { SmsService } from '../sms/sms.service.js';
 
 import { UserRegistationDto } from './dto/userRegistationDto.js';
 import { VerifyOtpDto } from '../sms/verifyotpDto.js';
+import { UserLoginDto } from './dto/userLoginDto.js';
 
 
 @Injectable()
@@ -198,4 +199,33 @@ export class UsersService {
             throw error;
         }
     }
+
+    async loginUser(userLoginDto : UserLoginDto){
+        try {
+            const {email , password} = userLoginDto;
+        const isExisting: Array<UserRegistationDto> = await this.dataSource.query(`SELECT * FROM "user" WHERE email = $1` , [email]);
+        if(isExisting.length === 0){
+            throw new Error('User Not Found');
+        }
+
+        const user = isExisting[0];
+        
+        const isMatch = await bcrypt.compare(password , user.password); 
+        if (!isMatch) {throw new Error('Invalid Password or Username');}
+        return {
+            message : "User Login Successfully",
+            user : {
+                fname : user.fname,
+                lname : user.lname,
+                mobileno : user.mobileno,
+                email : user.email
+            }
+        }
+        } catch (error: unknown) {
+        return {
+             message: error instanceof Error ? error.message : 'An unexpected error occurred'
+            };
+        }
+    }
+
 }
