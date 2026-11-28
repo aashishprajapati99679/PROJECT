@@ -22,6 +22,7 @@ import { SmsService } from '../sms/sms.service.js';
 import { UserRegistationDto } from './dto/userRegistationDto.js';
 import { VerifyOtpDto } from '../sms/verifyotpDto.js';
 import { UserLoginDto } from './dto/userLoginDto.js';
+import { JwtService } from '@nestjs/jwt';
 
 
 @Injectable()
@@ -30,7 +31,8 @@ export class UsersService {
         private readonly dataSource : DataSource,
         @Inject(REDIS_CLIENT)
         private readonly redis : Redis,
-        private readonly smsService : SmsService
+        private readonly smsService : SmsService ,
+        private readonly jwtService : JwtService,
     ){}
 
 
@@ -202,18 +204,25 @@ export class UsersService {
 
     async loginUser(userLoginDto : UserLoginDto){
         try {
-            const {email , password} = userLoginDto;
+        const {email , password} = userLoginDto;
         const isExisting: Array<UserRegistationDto> = await this.dataSource.query(`SELECT * FROM "user" WHERE email = $1` , [email]);
         if(isExisting.length === 0){
             throw new Error('User Not Found');
         }
 
-        const user = isExisting[0];
+        const user : UserRegistationDto = isExisting[0];
+        const payload = {
+            sub : user.mobileno,
+            email : user.email,
+        }
+
+        const accessToken = await this.jwtService.signAsync(payload);
         
         const isMatch = await bcrypt.compare(password , user.password); 
         if (!isMatch) {throw new Error('Invalid Password or Username');}
         return {
             message : "User Login Successfully",
+            access_token : accessToken,
             user : {
                 fname : user.fname,
                 lname : user.lname,
